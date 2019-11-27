@@ -72,7 +72,7 @@ impl Future for PidFd {
             revents: 0,
         }][..];
 
-        let returned = unsafe { libc::poll(poll_fds as *mut _ as *mut libc::pollfd, 1, 0) };
+        let returned = unsafe { libc::poll(poll_fds as *mut _ as *mut libc::pollfd, 1, 1) };
 
         if 0 == returned {
             ctx.waker().wake_by_ref();
