@@ -4,6 +4,8 @@ This Rust crate provides Linux (>= 5.3) PID file descriptor support. PID file de
 
 One of the benefits of using a PID FD is the ability to use `poll()`, `select()`, and `epoll()` to monitor when the process has terminated. This makes it ideal for use in asynchronous programming. This crate implements `std::future::Future` on the `PidFd` type so that multiple processes can be awaited concurrently.
 
+> Linux 5.4 is required to use the `waitid` feature, which enables fetching the exit status of a pidfd.
+
 ```rust
 use pidfd::PidFd;
 use std::{io, process::Command};

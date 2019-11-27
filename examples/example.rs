@@ -14,7 +14,8 @@ fn main() {
             spawn_sleeper("3", "3"),
             spawn_sleeper("4", "2"),
             spawn_sleeper("5", "1"),
-        ).unwrap();
+        )
+        .unwrap();
     })
 }
 

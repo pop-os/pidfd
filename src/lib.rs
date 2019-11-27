@@ -5,13 +5,19 @@ use std::{
     convert::TryInto,
     future::Future,
     io,
-    os::unix::io::{AsRawFd, RawFd},
+    mem::MaybeUninit,
+    os::unix::{
+        io::{AsRawFd, RawFd},
+        process::ExitStatusExt,
+    },
     pin::Pin,
+    process::ExitStatus,
     task::{Context, Poll},
 };
 
 const PIDFD_OPEN: libc::c_int = 434;
 const PID_SEND: libc::c_int = 424;
+const P_PIDFD: libc::idtype_t = 3;
 
 /// A file descriptor which refers to a process
 pub struct PidFd(RawFd);
@@ -57,7 +63,7 @@ impl PidFd {
 }
 
 impl Future for PidFd {
-    type Output = io::Result<()>;
+    type Output = io::Result<ExitStatus>;
 
     fn poll(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
         let poll_fds = &mut [libc::pollfd {
@@ -74,7 +80,15 @@ impl Future for PidFd {
         } else if -1 == returned {
             Poll::Ready(Err(io::Error::last_os_error()))
         } else {
-            Poll::Ready(Ok(()))
+            #[cfg(feature = "waitid")]
+            {
+                Poll::Ready(waitid(self.0))
+            }
+
+            #[cfg(not(feature = "waitid"))]
+            {
+                Poll::Ready(Ok(ExitStatus::from_raw(0)))
+            }
         }
     }
 }
@@ -112,4 +126,17 @@ unsafe fn pidfd_send_signal(
     flags: libc::c_uint,
 ) -> libc::c_int {
     syscall(PID_SEND, pidfd, sig, info, flags)
+}
+
+#[cfg(feature = "waitid")]
+fn waitid(pidfd: RawFd) -> io::Result<ExitStatus> {
+    unsafe {
+        let mut info = MaybeUninit::<libc::siginfo_t>::uninit();
+        let exit_status = libc::waitid(P_PIDFD, pidfd as u32, info.as_mut_ptr(), libc::WEXITED);
+        if -1 == exit_status {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(ExitStatus::from_raw(info.assume_init().si_errno))
+        }
+    }
 }
