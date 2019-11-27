@@ -1,0 +1,19 @@
+[package]
+name = "pidfd"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+edition = "2018"
+authors = ["Michael Aaron Murphy <mmstick@pm.me>"]
+repository = "https://github.com/pop-os/pidfd"
+description = """
+Obtain file descriptors which refer to processes
+"""
+keywords = ["linux", "pidfd"]
+categories = ["asynchronous", "os::unix-apis", ]
+
+[dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+futures = "0.3"
