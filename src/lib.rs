@@ -37,6 +37,11 @@ impl PidFd {
             .and_then(|pid| unsafe { Self::open(pid, 0) })
     }
 
+    #[cfg(feature = "waitid")]
+    pub fn wait(&self) -> io::Result<ExitStatus> {
+        waitid(self)
+    }
+
     /// Creates a PID file descriptor from a PID
     pub unsafe fn open(pid: libc::pid_t, flags: libc::c_uint) -> io::Result<Self> {
         let pidfd = pidfd_create(pid, flags);
