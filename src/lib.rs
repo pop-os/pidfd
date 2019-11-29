@@ -24,7 +24,7 @@ pub struct PidFd(RawFd);
 
 impl PidFd {
     /// Converts a `Child` into a `PidFd`; validating if the PID is in range
-    pub fn from_std_checked(child: std::process::Child) -> io::Result<Self> {
+    pub fn from_std_checked(child: &std::process::Child) -> io::Result<Self> {
         child
             .id()
             .try_into()
@@ -37,7 +37,7 @@ impl PidFd {
             .and_then(|pid| unsafe { Self::open(pid, 0) })
     }
 
-    /// Creates a pidfd from a PID
+    /// Creates a PID file descriptor from a PID
     pub unsafe fn open(pid: libc::pid_t, flags: libc::c_uint) -> io::Result<Self> {
         let pidfd = pidfd_create(pid, flags);
         if -1 == pidfd {
@@ -47,7 +47,7 @@ impl PidFd {
         }
     }
 
-    /// Sends a signal to the process owned by this pidfd
+    /// Sends a signal to the process owned by this PID file descriptor
     pub unsafe fn send_raw_signal(
         &self,
         sig: libc::c_int,
@@ -105,8 +105,8 @@ impl Drop for PidFd {
     }
 }
 
-impl From<std::process::Child> for PidFd {
-    fn from(child: std::process::Child) -> Self {
+impl From<&std::process::Child> for PidFd {
+    fn from(child: &std::process::Child) -> Self {
         Self::from_std_checked(child).unwrap()
     }
 }
