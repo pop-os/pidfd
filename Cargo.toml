@@ -17,6 +17,7 @@ waitid = []
 
 [dependencies]
 libc = "0.2"
+once_cell = "1.2"
 
 [dev-dependencies]
 futures = "0.3"

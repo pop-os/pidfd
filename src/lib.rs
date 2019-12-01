@@ -1,6 +1,10 @@
 #[cfg(not(target_os = "linux"))]
 compile_error!("PidFd is only supported on Linux >= 5.3");
 
+mod reactor;
+
+use self::reactor::REACTOR;
+
 use std::{
     convert::TryInto,
     future::Future,
@@ -12,7 +16,12 @@ use std::{
     },
     pin::Pin,
     process::ExitStatus,
-    task::{Context, Poll},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        mpsc, Arc, Mutex,
+    },
+    task::{Context, Poll, Waker},
+    time::Duration,
 };
 
 const PIDFD_OPEN: libc::c_int = 434;
@@ -67,33 +76,41 @@ impl PidFd {
     }
 }
 
-impl Future for PidFd {
+impl From<PidFd> for PidFuture {
+    fn from(fd: PidFd) -> Self {
+        Self {
+            fd,
+            completed: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+pub struct PidFuture {
+    fd: PidFd,
+    completed: Arc<AtomicBool>,
+}
+
+impl Future for PidFuture {
     type Output = io::Result<ExitStatus>;
 
-    fn poll(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
-        let poll_fds = &mut [libc::pollfd {
-            fd: self.0,
-            events: libc::POLLIN,
-            revents: 0,
-        }][..];
-
-        let returned = unsafe { libc::poll(poll_fds as *mut _ as *mut libc::pollfd, 1, 1) };
-
-        if 0 == returned {
-            ctx.waker().wake_by_ref();
-            Poll::Pending
-        } else if -1 == returned {
-            Poll::Ready(Err(io::Error::last_os_error()))
-        } else {
+    fn poll(self: Pin<&mut Self>, context: &mut Context) -> Poll<Self::Output> {
+        if self.completed.load(Ordering::SeqCst) {
             #[cfg(feature = "waitid")]
             {
-                Poll::Ready(waitid(self.0))
+                Poll::Ready(waitid(self.fd.0))
             }
 
             #[cfg(not(feature = "waitid"))]
             {
                 Poll::Ready(Ok(ExitStatus::from_raw(0)))
             }
+        } else {
+            REACTOR.send(
+                self.fd.0,
+                Arc::clone(&self.completed),
+                context.waker().clone(),
+            );
+            Poll::Pending
         }
     }
 }
