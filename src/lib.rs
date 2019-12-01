@@ -46,6 +46,8 @@ impl PidFd {
             .and_then(|pid| unsafe { Self::open(pid, 0) })
     }
 
+    pub fn into_future(self) -> PidFuture { self.into() }
+
     #[cfg(feature = "waitid")]
     pub fn wait(&self) -> io::Result<ExitStatus> {
         waitid(self)
@@ -110,6 +112,7 @@ impl Future for PidFuture {
                 Arc::clone(&self.completed),
                 context.waker().clone(),
             );
+
             Poll::Pending
         }
     }
