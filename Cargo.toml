@@ -1,6 +1,6 @@
 [package]
 name = "pidfd"
-version = "0.2.1"
+version = "0.2.2"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 edition = "2018"
