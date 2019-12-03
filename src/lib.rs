@@ -1,9 +1,7 @@
 #[cfg(not(target_os = "linux"))]
 compile_error!("PidFd is only supported on Linux >= 5.3");
 
-mod reactor;
-
-use self::reactor::REACTOR;
+use fd_reactor::{Interest, REACTOR};
 
 use std::{
     convert::TryInto,
@@ -46,11 +44,13 @@ impl PidFd {
             .and_then(|pid| unsafe { Self::open(pid, 0) })
     }
 
-    pub fn into_future(self) -> PidFuture { self.into() }
+    pub fn into_future(self) -> PidFuture {
+        self.into()
+    }
 
     #[cfg(feature = "waitid")]
     pub fn wait(&self) -> io::Result<ExitStatus> {
-        waitid(self)
+        waitid(self.0)
     }
 
     /// Creates a PID file descriptor from a PID
@@ -83,6 +83,7 @@ impl From<PidFd> for PidFuture {
         Self {
             fd,
             completed: Arc::new(AtomicBool::new(false)),
+            registered: false,
         }
     }
 }
@@ -90,13 +91,16 @@ impl From<PidFd> for PidFuture {
 pub struct PidFuture {
     fd: PidFd,
     completed: Arc<AtomicBool>,
+    registered: bool,
 }
 
 impl Future for PidFuture {
     type Output = io::Result<ExitStatus>;
 
-    fn poll(self: Pin<&mut Self>, context: &mut Context) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context) -> Poll<Self::Output> {
         if self.completed.load(Ordering::SeqCst) {
+            REACTOR.unregister(self.fd.0);
+
             #[cfg(feature = "waitid")]
             {
                 Poll::Ready(waitid(self.fd.0))
@@ -107,11 +111,16 @@ impl Future for PidFuture {
                 Poll::Ready(Ok(ExitStatus::from_raw(0)))
             }
         } else {
-            REACTOR.send(
-                self.fd.0,
-                Arc::clone(&self.completed),
-                context.waker().clone(),
-            );
+            if !self.registered {
+                REACTOR.register(
+                    self.fd.0,
+                    Interest::READ,
+                    Arc::clone(&self.completed),
+                    context.waker().clone(),
+                );
+
+                self.registered = true;
+            }
 
             Poll::Pending
         }

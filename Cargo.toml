@@ -1,6 +1,6 @@
 [package]
 name = "pidfd"
-version = "0.2.2"
+version = "0.2.3"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 edition = "2018"
@@ -10,14 +10,14 @@ description = """
 Obtain file descriptors which refer to processes
 """
 keywords = ["linux", "pidfd"]
-categories = ["asynchronous", "os::unix-apis", ]
+categories = ["asynchronous", "os::unix-apis"]
 
 [features]
 waitid = []
 
 [dependencies]
 libc = "0.2"
-once_cell = "1.2"
+fd-reactor = "0.1"
 
 [dev-dependencies]
 futures = "0.3"
