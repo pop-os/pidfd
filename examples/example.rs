@@ -21,10 +21,15 @@ fn main() {
 
 async fn spawn_sleeper(id: &str, timeout: &str) -> io::Result<()> {
     println!("started job {}", id);
-    let child = Command::new("/bin/sleep").arg(timeout).spawn().unwrap();
 
-    PidFd::from(&child).into_future().await?;
+    let exit_status = Command::new("/bin/sleep")
+        .arg(timeout)
+        .spawn()
+        .map(|child| PidFd::from(&child))
+        .unwrap()
+        .into_future()
+        .await?;
 
-    println!("finished job {}", id);
+    println!("finished job {}: {}", id, exit_status);
     Ok(())
 }
