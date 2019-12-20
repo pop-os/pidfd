@@ -145,6 +145,12 @@ impl From<&std::process::Child> for PidFd {
     }
 }
 
+impl From<std::process::Child> for PidFd {
+    fn from(child: std::process::Child) -> Self {
+        Self::from(&child)
+    }
+}
+
 extern "C" {
     fn syscall(num: libc::c_int, ...) -> libc::c_int;
 }

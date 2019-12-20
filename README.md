@@ -29,7 +29,7 @@ async fn spawn_sleeper(id: &str, timeout: &str) -> io::Result<()> {
     let exit_status = Command::new("/bin/sleep")
         .arg(timeout)
         .spawn()
-        .map(|child| PidFd::from(&child))
+        .map(PidFd::from)
         .unwrap()
         .into_future()
         .await?;
