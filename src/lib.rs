@@ -8,9 +8,12 @@ use std::{
     future::Future,
     io,
     mem::MaybeUninit,
-    os::unix::{
-        io::{AsRawFd, RawFd},
-        process::ExitStatusExt,
+    os::{
+        fd::{AsFd, BorrowedFd},
+        unix::{
+            io::{AsRawFd, RawFd},
+            process::ExitStatusExt,
+        },
     },
     pin::Pin,
     process::ExitStatus,
@@ -178,5 +181,11 @@ fn waitid(pidfd: RawFd) -> io::Result<ExitStatus> {
         } else {
             Ok(ExitStatus::from_raw(info.assume_init().si_errno))
         }
+    }
+}
+
+impl AsFd for PidFd {
+    fn as_fd(&self) -> std::os::fd::BorrowedFd<'_> {
+        unsafe { BorrowedFd::borrow_raw(self.0) }
     }
 }
